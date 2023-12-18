@@ -1,13 +1,57 @@
 CPMAddPackage(
     NAME fmt
-    GIT_TAG 10.1.1
     GITHUB_REPOSITORY fmtlib/fmt
+    GIT_TAG 10.1.1
+    SYSTEM ON
 )
 
 CPMAddPackage(
     NAME spdlog
-    GIT_TAG v1.12.0
     GITHUB_REPOSITORY gabime/spdlog
+    GIT_TAG v1.12.0
+    SYSTEM ON
     OPTIONS
     "SPDLOG_FMT_EXTERNAL ON"
+)
+
+CPMAddPackage(
+    NAME glm
+    GITHUB_REPOSITORY g-truc/glm
+    GIT_TAG 0.9.9.8
+    SYSTEM ON
+)
+
+CPMAddPackage(
+    NAME assimp
+    GITHUB_REPOSITORY assimp/assimp
+    GIT_TAG v5.3.1
+    SYSTEM ON
+    OPTIONS
+    "ASSIMP_BUILD_TESTS OFF"
+    "ASSIMP_INSTALL OFF"
+    "ASSIMP_BUILD_ASSIMP_VIEW OFF"
+    "ASSIMP_NO_EXPORT ON"
+    "ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF"
+    "ASSIMP_BUILD_OBJ_IMPORTER ON"
+    "ASSIMP_BUILD_FBX_IMPORTER ON"
+    "ASSIMP_BUILD_GLTF_IMPORTER ON"
+)
+
+CPMAddPackage(
+    NAME glfw
+    GITHUB_REPOSITORY glfw/glfw
+    GIT_TAG 3.3.9
+    SYSTEM ON
+    OPTIONS
+    "GLFW_BUILD_EXAMPLES OFF"
+    "GLFW_INSTALL OFF"
+)
+
+CPMAddPackage(
+    NAME VkMana
+    GITHUB_REPOSITORY stuart6854/VkMana
+    GIT_TAG main
+    SYSTEM ON
+    OPTIONS
+    "VKMANA_BUILD_SAMPLES OFF"
 )

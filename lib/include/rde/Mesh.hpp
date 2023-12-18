@@ -1,12 +1,13 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 namespace rde
 {
 	struct MeshData
 	{
-		// #TODO: Switch floats for Vec2/Vec3
+		std::vector<uint16_t> indices;
 		std::vector<float> positions;
 		std::vector<float> normals;
 		std::vector<float> tangents;

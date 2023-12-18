@@ -12,3 +12,5 @@ set_target_properties(${TARGET_NAME} PROPERTIES
 
 target_include_directories(${TARGET_NAME} PRIVATE include src)
 target_include_directories(${TARGET_NAME} SYSTEM PUBLIC include)
+
+target_link_libraries(${TARGET_NAME} PRIVATE fmt PUBLIC VkMana)

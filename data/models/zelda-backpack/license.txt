@@ -1,0 +1,11 @@
+Model Information:
+* title:	Legend of Zelda - Adventurer's backpack
+* source:	https://sketchfab.com/3d-models/legend-of-zelda-adventurers-backpack-dc3b000a15fa4042ba7f756cc4bb3dfe
+* author:	glenatron (https://sketchfab.com/glenatron)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Legend of Zelda - Adventurer's backpack" (https://sketchfab.com/3d-models/legend-of-zelda-adventurers-backpack-dc3b000a15fa4042ba7f756cc4bb3dfe) by glenatron (https://sketchfab.com/glenatron) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
