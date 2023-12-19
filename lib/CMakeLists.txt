@@ -1,7 +1,7 @@
 set(TARGET_NAME RenderEngine)
 file(GLOB_RECURSE LIB_HEADERS include/**.hpp)
 file(GLOB_RECURSE LIB_SOURCE src/**.cpp)
-add_library(${TARGET_NAME} ${LIB_HEADERS} ${LIB_SOURCE})
+add_library(${TARGET_NAME} STATIC ${LIB_HEADERS} ${LIB_SOURCE})
 
 # target_compile_definitions(${TARGET_NAME} PRIVATE)
 set_target_properties(${TARGET_NAME} PROPERTIES
