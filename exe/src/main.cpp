@@ -68,7 +68,6 @@ public:
 		glfwGetFramebufferSize(m_window, &dim, nullptr);
 		return dim;
 	}
-
 	auto GetSurfaceHeight() -> uint32_t override
 	{
 		int32_t dim = 0;
@@ -77,15 +76,14 @@ public:
 	}
 
 	bool IsVSync() override { return true; }
-
 	bool IsAlive() override { return !glfwWindowShouldClose(m_window); }
 
-	void HideCursor() override {}
+	void SetTitle(const std::string& title) const { glfwSetWindowTitle(m_window, title.c_str()); }
 
+	void HideCursor() override {}
 	void ShowCursor() override {}
 
 	auto CreateCursor(uint32_t cursorType) -> void* override { return nullptr; }
-
 	void SetCursor(void* cursor) override {}
 
 private:
@@ -267,7 +265,7 @@ int main(int argc, char** argv)
 		{
 			.lodLevels = 2,
 			.mipDistances = { 0.0f, 15.0f },
-		});
+	});
 
 	engine.RegisterMesh(
 		MESH_ID_ZELDA_BACKPACK,
@@ -277,7 +275,7 @@ int main(int argc, char** argv)
 		});
 
 	uint32_t instId = 1;
-	constexpr auto SIZE = 3u;
+	constexpr auto SIZE = 250;
 	for (auto y = 0; y < SIZE; ++y)
 	{
 		for (auto x = 0; x < SIZE; ++x)
@@ -308,9 +306,16 @@ int main(int argc, char** argv)
 
 #pragma endregion
 
+	double lastFrameTime = glfwGetTime();
 	bool isRunning = true;
 	while (isRunning)
 	{
+		const auto thisFrameTime = glfwGetTime();
+		const auto deltaTime = float(thisFrameTime - lastFrameTime);
+		lastFrameTime = thisFrameTime;
+
+		window.SetTitle(fmt::format("RenderEngine - {}ms", uint32_t(deltaTime * 1000)));
+
 		window.NewFrame();
 		if (!window.IsAlive())
 		{
@@ -319,8 +324,6 @@ int main(int argc, char** argv)
 		}
 
 		engine.Flush();
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	}
 
 	return 0;

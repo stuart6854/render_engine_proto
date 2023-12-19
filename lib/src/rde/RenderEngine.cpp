@@ -207,7 +207,7 @@ namespace rde
 			cmd->BindVertexBuffers(0, { m_vertexBuffer.Get() }, { 0 });
 
 			const auto proj = glm::perspectiveLH_ZO(glm::radians(60.0f), float(windowWidth) / float(windowHeight), 0.1f, 1000.0f);
-			const auto view = glm::lookAtLH(glm::vec3{ 0, 0, -5.0f }, glm::vec3{ 0, 0, 0 }, glm::vec3{ 0, 1, 0 });
+			const auto view = glm::lookAtLH(glm::vec3{ -2, 5, -5.0f }, glm::vec3{ 50, 2, 50 }, glm::vec3{ 0, 1, 0 });
 			const auto viewProj = proj * view;
 			cmd->SetPushConstants(vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4), glm::value_ptr(viewProj));
 
