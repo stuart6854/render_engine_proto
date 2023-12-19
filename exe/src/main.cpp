@@ -275,7 +275,7 @@ int main(int argc, char** argv)
 		});
 
 	uint32_t instId = 1;
-	constexpr auto SIZE = 250;
+	constexpr auto SIZE = 50;
 	for (auto y = 0; y < SIZE; ++y)
 	{
 		for (auto x = 0; x < SIZE; ++x)
