@@ -2,6 +2,7 @@
 
 namespace rde
 {
+#pragma region Logging
 	DebugCallbackFunc gDebugCallbackFunc = nullptr;
 
 	void SetDebugCallback(const DebugCallbackFunc& callbackFunc)
@@ -14,5 +15,6 @@ namespace rde
 		if (gDebugCallbackFunc)
 			gDebugCallbackFunc(rd, level, msg);
 	}
+#pragma endregion
 
 } // namespace rde

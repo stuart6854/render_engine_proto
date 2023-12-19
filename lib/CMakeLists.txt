@@ -1,5 +1,5 @@
 set(TARGET_NAME RenderEngine)
-file(GLOB_RECURSE LIB_HEADERS include/**.hpp)
+file(GLOB_RECURSE LIB_HEADERS include/**.hpp src/**.hpp)
 file(GLOB_RECURSE LIB_SOURCE src/**.cpp)
 add_library(${TARGET_NAME} STATIC ${LIB_HEADERS} ${LIB_SOURCE})
 

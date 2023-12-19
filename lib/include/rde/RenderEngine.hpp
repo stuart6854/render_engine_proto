@@ -1,18 +1,25 @@
 #pragma once
 
 #include "Mesh.hpp"
+#include "PackedArray.hpp"
 
 #include <VkMana/Context.hpp>
-
 #include <VkMana/Pipeline.hpp>
 #include <VkMana/WSI.hpp>
+
+#include <glm/ext/matrix_float4x4.hpp>
+
+#include <atomic>
 #include <cstdint>
 #include <functional>
+#include <mutex>
+#include <queue>
 #include <unordered_map>
+#include <vector>
 
 namespace rde
 {
-	using MeshLoadFunc = std::function<void(uint64_t id, uint32_t lodLevel, MeshData&)>;
+	using MeshLoadFunc = std::function<void(uint64_t id, uint32_t lodLevel, VkMana::Context& ctx, MeshData&)>;
 
 	using PostProcessFunc = std::function<void()>;
 
@@ -44,7 +51,6 @@ namespace rde
 		void RegisterMaterial(uint64_t id);
 		void UnregisterMaterial(uint64_t materialId);
 
-#if 0
 		/**
 		 * @brief Register a instance to be rendered with a mesh instance
 		 *
@@ -54,6 +60,8 @@ namespace rde
 		void RegisterMeshInstance(uint64_t instanceId, uint64_t meshId);
 		void UnregisterMeshInstance(uint64_t instanceId);
 
+		void SetMeshInstanceTransform(uint64_t instanceId, const glm::mat4& transform);
+
 		/**
 		 * @brief Add flags that control how a mesh instance is rendered.
 		 *
@@ -62,9 +70,8 @@ namespace rde
 		 */
 		void AddMeshInstanceFlag(uint64_t instanceId, uint32_t flag);
 		void RemoveMeshInstanceFlag(uint64_t instanceId, uint32_t flag);
-#endif
 
-		void Submit(uint64_t meshId, uint32_t flags /*, Mat4 transform*/);
+		// void Submit(uint64_t meshId, uint32_t flags /*, Mat4 transform*/);
 
 		/**
 		 * @brief Register light
@@ -83,6 +90,8 @@ namespace rde
 		void Flush();
 
 	private:
+		void BuildMeshBuffers();
+
 		void SortBuckets();
 		void ClearBuckets();
 
@@ -93,17 +102,26 @@ namespace rde
 
 		MeshLoadFunc m_meshLoadFunc;
 
-		std::unordered_map<uint64_t, MeshData> m_registeredMeshMap;
-
-		struct MeshInstance
+		struct RegisteredMesh
 		{
-			uint64_t id;
-			uint64_t meshId;
-			uint32_t flags;
+			MeshInfo info;
+			std::vector<MeshData> lodData;
+			std::vector<std::atomic_bool> perLodIsLoaded;
 		};
-		std::unordered_map<uint64_t, MeshInstance> m_registeredMeshInstancesMap;
+		std::unordered_map<uint64_t, RegisteredMesh> m_registeredMeshMap;
 
-		std::unordered_map<uint64_t, MeshData> m_meshLoadDataMap; // Key=Hash(MeshId+LodLevel)
+		/* Registered Instance Data */
+		PackedArray<uint64_t> m_instanceMeshes;
+		PackedArray<glm::mat4> m_instanceTransforms;
+		PackedArray<uint32_t> m_instanceFlags;
+
+		std::mutex m_cacheMutex;
+
+		/**** Bindless Data ****/
+
+		VkMana::BufferHandle m_vertexBuffer;
+		VkMana::BufferHandle m_indexBuffer;
+		bool m_meshBuffersDirty = true;
 
 		/**** Buckets ****/
 		std::vector<uint64_t> m_shadowBucket;

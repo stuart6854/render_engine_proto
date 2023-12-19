@@ -1,74 +1,17 @@
 #include "rde/RenderEngine.hpp"
 
 #include "Logging.hpp"
+#include "rde/Core.hpp"
 #include "rde/Mesh.hpp"
 
 #include <VkMana/ShaderCompiler.hpp>
 
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <algorithm>
 #include <cstdint>
 #include <functional>
-
-constexpr auto GeometryShaderHLSL = R"(
-struct VSInput
-{
-	[[vk::location(0)]] float3 Position : POSITION0;
-	[[vk::location(1)]] float2 TexCoord : TEXCOORD0;
-	[[vk::location(2)]] float3 Normal : NORMAL0;
-	[[vk::location(3)]] float3 Tangent : TANGENT0;
-};
-
-struct PushConsts
-{
-	float4x4 viewProjMatrix;
-	float4x4 modelMatrix;
-};
-[[vk::push_constant]] PushConsts consts;
-
-struct VSOutput
-{
-	float4 FragPos : SV_POSITION;
-	[[vk::location(0)]] float3 WorldPos : POSITION0;
-	[[vk::location(1)]] float2 TexCoord : TEXCOORD0;
-	[[vk::location(2)]] float3 Normal : NORMAL0;
-	[[vk::location(3)]] float3 Tangent : TANGENT0;
-};
-
-VSOutput VSMain(VSInput input)
-{
-	VSOutput output;
-
-	output.FragPos = mul(consts.viewProjMatrix, mul(consts.modelMatrix, float4(input.Position.xyz, 1.0)));
-
-	output.WorldPos = mul(consts.modelMatrix, float4(input.Position.xyz, 1.0)).xyz;
-	output.TexCoord = input.TexCoord;
-	output.Normal = normalize(input.Normal);
-	output.Tangent = normalize(input.Tangent);
-	return output;
-}
-
-struct PSInput
-{
-	[[vk::location(1)]] float2 TexCoord : TEXCOORD0;
-	[[vk::location(2)]] float3 Normal : NORMAL0;
-	[[vk::location(3)]] float3 Tangent : TANGENT0;
-};
-
-struct PSOutput
-{
-	float4 FragColor : SV_TARGET0;
-};
-
-PSOutput PSMain(PSInput input)
-{
-	PSOutput output;
-
-	// output.Albedo = textureColor.Sample(samplerColor, input.UV);
-	output.FragColor = float4(1, 1, 1, 1);
-
-	return output;
-}
-)";
 
 namespace rde
 {
@@ -92,16 +35,16 @@ namespace rde
 				.PushConstantRange = { vk::ShaderStageFlagBits::eVertex, 0, 64 * 2 },
 				.SetLayouts = {},
 			};
-			auto pipelineLayout = m_ctx.CreatePipelineLayout(layoutInfo);
+			const auto pipelineLayout = m_ctx.CreatePipelineLayout(layoutInfo);
 
 			VkMana::ShaderCompileInfo compileInfo{
 				.SrcLanguage = VkMana::SourceLanguage::HLSL,
-				.SrcString = GeometryShaderHLSL,
+				.SrcFilename = "data/shaders/Geometry.hlsl",
 				.Stage = vk::ShaderStageFlagBits::eVertex,
 				.EntryPoint = "VSMain",
 				.Debug = false,
 			};
-			auto vertexSpirvOpt = CompileShader(compileInfo);
+			const auto vertexSpirvOpt = CompileShader(compileInfo);
 			if (!vertexSpirvOpt)
 			{
 				VM_ERR("Failed to read/compile Vertex shader.");
@@ -110,7 +53,7 @@ namespace rde
 
 			compileInfo.Stage = vk::ShaderStageFlagBits::eFragment;
 			compileInfo.EntryPoint = "PSMain";
-			auto fragmentSpirvOpt = CompileShader(compileInfo);
+			const auto fragmentSpirvOpt = CompileShader(compileInfo);
 			if (!fragmentSpirvOpt)
 			{
 				VM_ERR("Failed to read/compile Fragment shader.");
@@ -121,16 +64,13 @@ namespace rde
 				.Vertex = { vertexSpirvOpt.value(), "VSMain" },
 				.Fragment = { fragmentSpirvOpt.value(), "PSMain" },
 				.VertexAttributes = {
-					vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, 0),
-					vk::VertexInputAttributeDescription(1, 1, vk::Format::eR32G32Sfloat, 0),
-					vk::VertexInputAttributeDescription(2, 2, vk::Format::eR32G32B32Sfloat, 0),
-					vk::VertexInputAttributeDescription(3, 3, vk::Format::eR32G32B32Sfloat, 0),
+					vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, position)),
+					vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord)),
+					vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, normal)),
+					vk::VertexInputAttributeDescription(3, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, tangent)),
 				},
 				.VertexBindings = {
-					vk::VertexInputBindingDescription(0, sizeof(float) * 3, vk::VertexInputRate::eVertex),
-					vk::VertexInputBindingDescription(1, sizeof(float) * 2, vk::VertexInputRate::eVertex),
-					vk::VertexInputBindingDescription(2, sizeof(float) * 3, vk::VertexInputRate::eVertex),
-					vk::VertexInputBindingDescription(3, sizeof(float) * 3, vk::VertexInputRate::eVertex),
+					vk::VertexInputBindingDescription(0, sizeof(Vertex), vk::VertexInputRate::eVertex),
 				},
 				.Topology =  vk::PrimitiveTopology::eTriangleList,
 				.ColorTargetFormats = { vk::Format::eB8G8R8A8Srgb },
@@ -147,28 +87,83 @@ namespace rde
 		m_meshLoadFunc = func;
 	}
 
-	void RenderEngine::RegisterMesh(uint64_t id, const MeshInfo& meshInfo) {}
+	void RenderEngine::RegisterMesh(uint64_t id, const MeshInfo& meshInfo)
+	{
+		auto [it, success] = m_registeredMeshMap.emplace(id, RegisteredMesh{});
+		auto& registeredMesh = it->second;
+		registeredMesh.info = meshInfo;
+		registeredMesh.lodData.resize(registeredMesh.info.lodLevels);
+		registeredMesh.perLodIsLoaded = std::vector<std::atomic_bool>(registeredMesh.info.lodLevels);
 
-	void RenderEngine::UnregisterMesh(uint64_t id) {}
+		m_meshLoadFunc(id, meshInfo.lodLevels - 1, m_ctx, registeredMesh.lodData[meshInfo.lodLevels - 1]);
+		registeredMesh.perLodIsLoaded[meshInfo.lodLevels - 1] = true;
+	}
+
+	void RenderEngine::UnregisterMesh(uint64_t id)
+	{
+		m_registeredMeshMap.erase(id);
+
+		m_meshBuffersDirty = true;
+	}
 
 	void RenderEngine::RegisterMaterial(uint64_t id) {}
 
 	void RenderEngine::UnregisterMaterial(uint64_t materialId) {}
 
+	void RenderEngine::RegisterMeshInstance(uint64_t instanceId, uint64_t meshId)
+	{
+		// #TODO: Check if meshId is valid?
+		m_instanceMeshes.AddValue(instanceId, meshId);
+		m_instanceTransforms.AddValue(instanceId, glm::mat4(1.0f));
+		m_instanceFlags.AddValue(instanceId, 0);
+	}
+
+	void RenderEngine::UnregisterMeshInstance(uint64_t instanceId)
+	{
+		m_instanceMeshes.RemoveValue(instanceId);
+		m_instanceTransforms.RemoveValue(instanceId);
+		m_instanceFlags.RemoveValue(instanceId);
+	}
+
+	void RenderEngine::SetMeshInstanceTransform(uint64_t instanceId, const glm::mat4& transform)
+	{
+		if (!m_instanceTransforms.Contains(instanceId))
+		{
+			RDE_ERROR("Instance with id {} does not exist. It must be registered with RenderEngine::RegisterMeshInstance().", instanceId);
+			return;
+		}
+
+		m_instanceTransforms.SetValue(instanceId, transform);
+	}
+
 #if 0
-	void RenderEngine::RegisterMeshInstance(uint64_t instanceId, uint64_t meshId) {}
-
-	void RenderEngine::UnregsisterMeshInstance(uint64_t instanceId) {}
-#endif
-
 	void RenderEngine::Submit(uint64_t meshId, uint32_t flags /*, Mat4 transform*/)
 	{
+		const auto meshInfoIt = m_registeredMeshMap.find(meshId);
+		if (meshInfoIt == m_registeredMeshMap.end())
+		{
+			RDE_ERROR("Mesh with id {} does not exist. It must be registered with RenderEngine::RegisterMesh().");
+			return;
+		}
+
+		const auto& meshInfo = meshInfoIt->second;
+		const auto& meshLodData = meshInfo.lodData[0];
+
+		if (!meshInfo.perLodIsLoaded[0])
+		{
+			// This lod has not yet been loaded, so lets start loading it
+			// #TODO: Load mesh lod
+			// TODO: Should we try render with the next best lod (if available)?
+			return;
+		}
+
 		const auto sortKey = GenSortKey();
 
 		m_geometryBucket.push_back(sortKey);
 		if (flags & MESH_INST_FLAG_CASTS_SHADOW)
 			m_shadowBucket.push_back(sortKey);
 	}
+#endif
 
 	void RenderEngine::RegisterLight_Directional(uint64_t id /*, Position, Direction, Color, Intensity */) {}
 
@@ -191,21 +186,47 @@ namespace rde
 
 		m_ctx.BeginFrame();
 
+		if (m_meshBuffersDirty)
+		{
+			BuildMeshBuffers();
+			m_meshBuffersDirty = false;
+		}
+
 		auto cmd = m_ctx.RequestCmd();
 
 		const auto rpInfo = m_ctx.GetSurfaceRenderPass(m_window);
 		cmd->BeginRenderPass(rpInfo);
 
 		cmd->BindPipeline(m_pipeline.Get());
-		cmd->SetViewport(0, 0, float(windowWidth), float(windowHeight));
+		cmd->SetViewport(0, float(windowHeight), float(windowWidth), -float(windowHeight));
 		cmd->SetScissor(0, 0, windowWidth, windowHeight);
 
-		for (const auto& inst : m_geometryBucket)
+		if (m_vertexBuffer && m_indexBuffer)
 		{
-			cmd->Draw(3, 0);
+			cmd->BindIndexBuffer(m_indexBuffer.Get());
+			cmd->BindVertexBuffers(0, { m_vertexBuffer.Get() }, { 0 });
+
+			const auto proj = glm::perspectiveLH_ZO(glm::radians(60.0f), float(windowWidth) / float(windowHeight), 0.1f, 1000.0f);
+			const auto view = glm::lookAtLH(glm::vec3{ 0, 0, -5.0f }, glm::vec3{ 0, 0, 0 }, glm::vec3{ 0, 1, 0 });
+			const auto viewProj = proj * view;
+			cmd->SetPushConstants(vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4), glm::value_ptr(viewProj));
+
+			for (auto i = 0u; i < m_instanceMeshes.GetSize(); ++i)
+			{
+				const auto meshId = m_instanceMeshes.GetArray()[i];
+				const auto& meshInfo = m_registeredMeshMap[meshId];
+				const auto& lodData = meshInfo.lodData[meshInfo.info.lodLevels - 1];
+
+				auto model = m_instanceTransforms.GetArray()[i];
+				cmd->SetPushConstants(vk::ShaderStageFlagBits::eVertex, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(model));
+
+				cmd->DrawIndexed(lodData.indexCount, lodData.firstIndex, lodData.firstVertex);
+			}
 		}
 
 		cmd->EndRenderPass();
+
+		m_ctx.Submit(cmd);
 
 		m_ctx.EndFrame();
 		m_ctx.Present();
@@ -213,10 +234,77 @@ namespace rde
 		ClearBuckets();
 	}
 
+	void RenderEngine::BuildMeshBuffers()
+	{
+		RDE_INFO("Building vertex & index buffers...");
+
+		uint64_t totalVertices = 0;
+		uint64_t totalIndices = 0;
+
+		for (auto& [id, mesh] : m_registeredMeshMap)
+		{
+			for (auto& lodData : mesh.lodData)
+			{
+				lodData.firstVertex = totalVertices;
+				lodData.firstIndex = totalIndices;
+
+				totalVertices += lodData.vertexCount;
+				totalIndices += lodData.indexCount;
+			}
+		}
+
+		if (totalVertices == 0 || totalIndices == 0)
+		{
+			RDE_INFO("No vertices/indices to build buffers with.", totalVertices, totalIndices);
+			return;
+		}
+
+		const auto vtxBufInfo = VkMana::BufferCreateInfo::Vertex(totalVertices * sizeof(Vertex));
+		m_vertexBuffer = m_ctx.CreateBuffer(vtxBufInfo);
+
+		const auto idxBufInfo = VkMana::BufferCreateInfo::Index(totalIndices * sizeof(uint16_t));
+		m_indexBuffer = m_ctx.CreateBuffer(idxBufInfo);
+
+		auto cmd = m_ctx.RequestCmd();
+
+		for (auto& [id, mesh] : m_registeredMeshMap)
+		{
+			for (auto i = 0u; i < mesh.info.lodLevels; ++i)
+			{
+				if (!mesh.perLodIsLoaded[i])
+					continue;
+
+				const auto& lodData = mesh.lodData[i];
+
+				VkMana::BufferCopyInfo vtxCopyInfo{
+					.SrcBuffer = lodData.vertexBuffer.Get(),
+					.DstBuffer = m_vertexBuffer.Get(),
+					.Size = lodData.vertexCount * sizeof(Vertex),
+					.SrcOffset = 0,
+					.DstOffset = lodData.firstVertex * sizeof(Vertex),
+				};
+				cmd->CopyBuffer(vtxCopyInfo);
+
+				VkMana::BufferCopyInfo idxCopyInfo{
+					.SrcBuffer = lodData.indexBuffer.Get(),
+					.DstBuffer = m_indexBuffer.Get(),
+					.Size = lodData.indexCount * sizeof(uint16_t),
+					.SrcOffset = 0,
+					.DstOffset = lodData.firstIndex * sizeof(uint16_t),
+				};
+				cmd->CopyBuffer(idxCopyInfo);
+			}
+		}
+
+		m_ctx.SubmitStaging(cmd);
+
+		RDE_INFO("Vertex/Index buffers built. {} vertices, {} indices.", totalVertices, totalIndices);
+	}
+
 	void RenderEngine::SortBuckets()
 	{
-		std::sort(m_shadowBucket.begin(), m_shadowBucket.end(), std::less<uint64_t>());
-		std::sort(m_geometryBucket.begin(), m_geometryBucket.end(), std::less<uint64_t>());
+		std::ranges::sort(m_shadowBucket, std::less());
+		std::ranges::sort(m_geometryBucket, std::less());
 	}
 
 	void RenderEngine::ClearBuckets()

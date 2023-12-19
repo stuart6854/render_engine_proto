@@ -6,3 +6,4 @@ out/
 # Tooling Artifacts
 .cache/
 compile_commands.json
+*.cap

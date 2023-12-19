@@ -12,3 +12,6 @@ Just a repository for me to play with designing a Render Engine. Maybe something
 
 - Let the Engine decide when to load/unload graphics resources.
   - Host, when registering graphics resources, would provide requires information about resource.
+
+- Mesh LODs
+  - https://computergraphics.stackexchange.com/questions/1438/what-is-the-state-of-art-in-geometric-lod-in-games
