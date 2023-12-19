@@ -31,6 +31,11 @@ namespace rde
 		}
 
 		{
+			const auto depthImgInfo = VkMana::ImageCreateInfo::DepthStencilTarget(window.GetSurfaceWidth(), window.GetSurfaceHeight(), false);
+			m_depthTarget = m_ctx.CreateImage(depthImgInfo);
+		}
+
+		{
 			const VkMana::PipelineLayoutCreateInfo layoutInfo{
 				.PushConstantRange = { vk::ShaderStageFlagBits::eVertex, 0, 64 * 2 },
 				.SetLayouts = {},
@@ -74,6 +79,7 @@ namespace rde
 				},
 				.Topology =  vk::PrimitiveTopology::eTriangleList,
 				.ColorTargetFormats = { vk::Format::eB8G8R8A8Srgb },
+				.DepthTargetFormat = m_depthTarget->GetFormat(),
 				.Layout = pipelineLayout,
 			};
 			m_pipeline = m_ctx.CreateGraphicsPipeline(pipelineInfo);
@@ -194,7 +200,8 @@ namespace rde
 
 		auto cmd = m_ctx.RequestCmd();
 
-		const auto rpInfo = m_ctx.GetSurfaceRenderPass(m_window);
+		auto rpInfo = m_ctx.GetSurfaceRenderPass(m_window);
+		rpInfo.Targets.push_back(VkMana::RenderPassTarget::DefaultDepthStencilTarget(m_depthTarget->GetImageView(VkMana::ImageViewType::RenderTarget)));
 		cmd->BeginRenderPass(rpInfo);
 
 		cmd->BindPipeline(m_pipeline.Get());

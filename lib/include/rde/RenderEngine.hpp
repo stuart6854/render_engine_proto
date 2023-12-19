@@ -98,6 +98,8 @@ namespace rde
 	private:
 		VkMana::WSI* m_window = nullptr;
 		VkMana::Context m_ctx;
+
+		VkMana::ImageHandle m_depthTarget = nullptr;
 		VkMana::PipelineHandle m_pipeline = nullptr;
 
 		MeshLoadFunc m_meshLoadFunc;
